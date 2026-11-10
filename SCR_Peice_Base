@@ -1,0 +1,191 @@
+// Heal piece and spawn particles
+public void Heal(float healAmount,bool spawnParticles)
+{
+    if (spawnParticles)
+    {
+        
+        healParticles = Instantiate(teamHealthManager.healParticles, transform.position + new Vector3(0, 1, 0), Quaternion.identity, gameObject.transform);
+        if (healParticles.GetComponent<VisualEffect>() != null)
+        {
+            healParticles.GetComponent<VisualEffect>().Play();
+        }
+    }
+
+    CurrentHealth += healAmount;
+
+}
+// Heal all friendly peices in diagonals from bishop
+private IEnumerator BishopAbliity(float healamount)
+{
+
+    List<SCR_Peice_Base> friendlyPieces = GetFriendlyPiecesInRange();
+
+    if (friendlyPieces != null)
+    {
+        foreach (SCR_Peice_Base f_Piece in friendlyPieces)
+        {
+            Vector2Int tilePos = f_Piece.currentTile;
+            GameObject newGlow = Instantiate(teamHealthManager.greenGlow, new Vector3(tilePos.x, -0.45f, tilePos.y), Quaternion.identity);
+            teamHealthManager.currentGlows.Add(newGlow);
+            f_Piece.Heal(healamount, true);
+            Debug.Log("Healed " + f_Piece.name + " for " + healamount);
+        }
+    }
+
+    action = action.idle;
+    yield return new WaitForEndOfFrame();
+
+}
+// shield friendly peices in a 3x3 area around pawn
+private IEnumerator PawnAbility()
+{
+    List<SCR_Peice_Base> friendlyPieces = GetFriendlyPiecesInRange();
+
+    if (friendlyPieces != null)
+    {
+        foreach (SCR_Peice_Base f_Piece in friendlyPieces)
+        {
+            Vector2Int tilePos = f_Piece.currentTile;
+            GameObject newGlow = Instantiate(teamHealthManager.blueGlow, new Vector3(tilePos.x, -0.45f, tilePos.y), Quaternion.identity);
+            teamHealthManager.currentGlows.Add(newGlow);
+            Debug.Log(f_Piece.name + "Gained 50 shield HP From " + name);
+            gaveShield++;
+            f_Piece.GetShield(50);
+
+        }
+    }
+
+    yield return new WaitForEndOfFrame();
+}
+// double attack damage for 10 seconds for each friendly peice in queens attack squares
+private void QueenAbility()
+{
+    List<SCR_Peice_Base> friendly = GetFriendlyPiecesInRange();
+    foreach (var piece in friendly)
+    {
+        Vector2Int tilePos = piece.currentTile;
+        GameObject newGlow = Instantiate(teamHealthManager.orangeGlow, new Vector3(tilePos.x, -0.45f, tilePos.y), Quaternion.identity);
+        teamHealthManager.currentGlows.Add(newGlow);
+        piece.bumpDamage *= 2;
+        piece.attackDamage *= 2;
+        piece.enragedTimer = 10;
+        piece.bIsEnraged = true;
+        GameObject enrageParticles = Instantiate(teamHealthManager.enrageParticles, transform.position + new Vector3(0, 1, 0), Quaternion.identity);
+        if (enrageParticles != null)
+        {
+            enrageParticles.GetComponent<ParticleSystem>().Play();
+        }
+    }
+
+}
+
+private void RookAbility(float abilityDamage)
+{
+    //gets radius of 2 around rook
+    List<Vector2Int> abilitySquares = new List<Vector2Int>
+    {
+        new Vector2Int(0,1), new Vector2Int(1,1), new Vector2Int(1,0), new Vector2Int(1,-1), new Vector2Int(0,-1), new Vector2Int(-1,-1), new Vector2Int(-1,0), new Vector2Int(-1,1),
+        new Vector2Int(-1,2), new Vector2Int(0,2), new Vector2Int(1,2), new Vector2Int(2,2), new Vector2Int(2,1), new Vector2Int(2,0), new Vector2Int(2,-1), new Vector2Int(2,-2), new Vector2Int(1,-2), new Vector2Int(0,-2), new Vector2Int(-1,-2), new Vector2Int(-2,-2), new Vector2Int(-2,-1), new Vector2Int(-2,0), new Vector2Int(-2,1), new Vector2Int(-2,2)
+    };
+
+    //Get all enemies in range
+    List<SCR_Peice_Base> enemies = new List<SCR_Peice_Base>();
+    
+    foreach (Vector2Int a_Pos in abilitySquares)
+    {
+        SCR_Peice_Base e_Piece = tileManager.GetPieceAt(a_Pos + currentTile);
+        if (e_Piece != null && e_Piece.teamID != this.teamID)
+        {
+            Vector2Int tilePos = e_Piece.currentTile;
+            GameObject newGlow = Instantiate(teamHealthManager.redGlow, new Vector3(tilePos.x, -0.45f, tilePos.y), Quaternion.identity);
+            GameObject groundPoundParticles = Instantiate(teamHealthManager.groundPoundParticles, transform.position + new Vector3(0, 1, 0), Quaternion.identity);
+            if (groundPoundParticles != null)
+            {
+                groundPoundParticles.GetComponent<ParticleSystem>().Play();
+            }
+            teamHealthManager.currentGlows.Add(newGlow);
+            enemies.Add(e_Piece);
+        }
+    }
+    if (enemies.Count() <= 0)
+    {
+        Debug.Log("No Enemies Found For Rook ability");
+        return;
+    }
+    //Damage and move enemies
+    foreach (var piece in enemies)
+    {
+        Vector2Int closestOpenSpace = piece.GetClosestEmptyTile();
+        if (closestOpenSpace != new Vector2Int(-1, -1))
+        {
+            piece.takeTamage(abilityDamage, true);
+            piece.targetTile = closestOpenSpace;
+            piece.action = action.moving;
+            piece.DoAction();
+        }
+        else
+        {
+            piece.takeTamage(abilityDamage, true);
+        }
+    }
+}
+// add shield to peice, change health slider to shield slider, Play Shield Particles
+private void GetShield(float shieldAmount)
+{
+    bHasShield = true;
+    if (shieldHealth >= 100)
+    {
+        return;
+    }
+    else if (shieldHealth < 100 && (shieldHealth + shieldAmount) > 100)
+    {
+        shieldHealth = 100;
+    }
+    else
+    {
+        shieldHealth += shieldAmount;
+    }
+
+    GameObject shieldParticles = Instantiate(teamHealthManager.shieldParticles, transform.position + new Vector3(0, 1, 0), Quaternion.identity);
+    if (shieldParticles != null)
+    {
+        shieldParticles.GetComponent<ParticleSystem>().Play();
+    }
+    
+}
+// Start ability
+private void FindPieceAbility(ChessPiece chessPiece)
+{
+    switch (chessPiece)
+    {
+        case ChessPiece.Pawn:
+            StartCoroutine(PawnAbility());
+            break;
+        case ChessPiece.Bishop:
+            StartCoroutine(BishopAbliity(20.0f));
+            break;
+        case ChessPiece.Queen:
+            QueenAbility();
+            break;
+        case ChessPiece.Sword:
+            SwordAbility(targetTile);
+            break;
+        case ChessPiece.Rook:
+            RookAbility(30);
+            break;
+        case ChessPiece.Knight:
+            action = action.idle;
+            peiceManger.StartNextTurn();
+            break;
+        case ChessPiece.King:
+            action = action.idle;
+            peiceManger.StartNextTurn();
+            break;
+        case ChessPiece.CastledKing:
+            action = action.idle;
+            peiceManger.StartNextTurn();
+            break;
+
+    }
+    return;
+}
