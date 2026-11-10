@@ -1,0 +1,185 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Net.NetworkInformation;
+using TMPro;
+using Unity.VisualScripting;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class SCR_AbilityButton : MonoBehaviour
+{
+    private SCR_PeiceManager peiceManager;
+    private SCR_CreatePieces createPieces;
+ 
+
+    private float timer = 10f;
+    private bool bPawn = false;
+    private bool bBishop = false;
+    private bool bRook = false;
+    private bool bQueen = false;
+    private bool bCanUseAbility = true;
+    [Header("buy text")]
+    [SerializeField] private TextMeshProUGUI pawnAbilityBuyText;
+    [SerializeField] private TextMeshProUGUI bishopAbilityBuyText;
+    [SerializeField] private TextMeshProUGUI rookAbilityBuyText;
+    [SerializeField] private TextMeshProUGUI queenAbilityBuyText;
+    
+    [Header("Cost")]
+    [SerializeField] private int pawnCost;
+    [SerializeField] private int bishopCost;
+    [SerializeField] private int rookCost;
+    [SerializeField] private int queenCost;
+
+    [Header("Timer UI")]
+    [SerializeField] private GameObject fillBackGround;
+    [SerializeField] private Image fillImage;
+    [SerializeField] private GameObject blackoutImages;
+   
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
+    {
+        peiceManager = FindFirstObjectByType<SCR_PeiceManager>();
+        createPieces = FindFirstObjectByType<SCR_CreatePieces>();
+        pawnAbilityBuyText.text = pawnCost.ToString();
+        bishopAbilityBuyText.text = bishopCost.ToString();
+        rookAbilityBuyText.text = rookCost.ToString();
+        queenAbilityBuyText.text = queenCost.ToString();
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        if (bPawn || bQueen || bRook || bQueen || bBishop)
+        {
+            bCanUseAbility = false;
+            timer -= Time.deltaTime;
+            
+        }
+        if (timer <= 0)
+        { 
+            bPawn = false;
+            bQueen = false;
+            bRook = false;
+            bBishop = false;
+            timer = 10f;
+            bCanUseAbility = true;
+            blackoutImages.SetActive(false);
+            fillBackGround.SetActive(false);
+        }
+        // start cooldown for abilites
+        if (!bCanUseAbility)
+        {
+            
+            blackoutImages.SetActive(true);
+            fillBackGround.SetActive(true);
+            fillImage.fillAmount = timer/10;
+        }
+    }
+
+   // Shields all friendly peices in 3x3 area
+    public void PawnAbility()
+    {
+        if (SearchForPieces(ChessPiece.Pawn) == null)
+        {
+            return;
+            // Add UI element to tell player they have no pawns
+        }
+        if (createPieces.DecreaseMoney(pawnCost) && bCanUseAbility)
+        {
+            bPawn = true;
+            foreach (var piece in SearchForPieces(ChessPiece.Pawn))
+            {
+
+                piece.canUseAbility = true;
+            }
+        }
+    }
+
+    // Heals all friendly peices in diagonal from bishop
+    public void BishopAbility()
+    {
+        if (SearchForPieces(ChessPiece.Bishop) == null)
+        {
+            return;
+        }
+        if (createPieces.DecreaseMoney(bishopCost) && bCanUseAbility)
+        {
+            bBishop = true;
+            foreach (var Piece in SearchForPieces(ChessPiece.Bishop))
+            {
+                Piece.canUseAbility = true;
+            }
+        }
+    }
+    
+    // Damages all enemy pieces in 3x3 area around rook
+    public void RookAbility()
+    {
+        if (SearchForPieces(ChessPiece.Rook) == null)
+        {
+            return;
+        }
+
+        if (createPieces.DecreaseMoney(rookCost) && bCanUseAbility)
+        {
+           
+            bRook = true;
+           
+            foreach (var piece in SearchForPieces(ChessPiece.Rook))
+            {
+               
+                piece.canUseAbility = true;
+                
+            }
+        }
+    }
+
+    // doubles damage for all friendly pieces in queens attack squares
+    public void QueenAbility()
+    {
+        if (SearchForPieces(ChessPiece.Queen) == null)
+        {
+            return;
+        }
+        if (createPieces.DecreaseMoney(queenCost) && bCanUseAbility)
+        {
+            bQueen = true;
+           
+            foreach (var piece in SearchForPieces(ChessPiece.Queen))
+            {
+                piece.canUseAbility = true;
+            }
+        }
+    }
+
+    // returns all peices of type
+    private List<SCR_Peice_Base> SearchForPieces(ChessPiece chessPiece)
+    {
+        Debug.Log("Searching For " + chessPiece);
+        List<SCR_Peice_Base> pieceList = new List<SCR_Peice_Base>();
+        int currentTeamID = 0;
+        switch (peiceManager.currentPlayerTeam)
+        { 
+            case 0:
+                currentTeamID = 0;
+                break;
+            case 1:
+                currentTeamID = 1;
+                break;
+        }
+        foreach (var Piece in peiceManager.peiceList)
+        {
+            if (Piece.piece == chessPiece && Piece.teamID == currentTeamID)
+            {
+                pieceList.Add(Piece);
+            }
+
+        }
+        if (pieceList.Count <= 0)
+        {
+            return null;
+        }
+        return pieceList;
+    }
+
+}

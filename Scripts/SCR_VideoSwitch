@@ -1,0 +1,40 @@
+using Unity.VisualScripting;
+using UnityEngine;
+using UnityEngine.Video;
+
+public class VideoSwitch : MonoBehaviour
+{
+    private float timer = 30.0f;
+    [SerializeField] private VideoPlayer player;
+    [SerializeField] GameObject canvas;
+    [SerializeField] GameObject videoCanvas;
+    private bool bVideoIsPlaying;
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
+    {
+        
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+       timer -= Time.deltaTime;
+        // start idle video after 30 seconds
+        if (timer <= 0)
+        { 
+            canvas.SetActive(false);
+            videoCanvas.SetActive(true);
+            player.Play();
+            bVideoIsPlaying = true;
+        }
+        // return to main menu when any input
+        if (bVideoIsPlaying && Input.anyKeyDown)
+        { 
+            player.Stop();
+            canvas.SetActive(true);
+            videoCanvas.SetActive(false);
+            bVideoIsPlaying = false;
+            timer = 30.0f;
+        }
+    }
+}
